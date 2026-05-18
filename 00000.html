@@ -1,0 +1,2068 @@
+<!doctype html>
+<html lang="ko">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>인슐린 수용체 구조 분석</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@300;400;500;600&family=Space+Mono:wght@400;700&display=swap" rel="stylesheet">
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/3Dmol/2.0.3/3Dmol-min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+  <style>
+    :root {
+      --bg: #050A0F;
+      --bg-panel: #0A1520;
+      --bg-elevated: #0F1E2D;
+      --border: #1A3A50;
+      --border-glow: #00C8FF22;
+      --primary: #00C8FF;
+      --primary-dim: #00C8FF33;
+      --danger: #FF3B6B;
+      --danger-dim: #FF3B6B22;
+      --success: #00FFB2;
+      --warning: #FFB830;
+      --text: #E8F4F8;
+      --text-sub: #6A9AB5;
+      --text-muted: #2A5070;
+      --font-main: 'DM Sans', sans-serif;
+      --font-mono: 'Space Mono', monospace;
+      --radius: 8px;
+      --radius-lg: 16px;
+      --transition: 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+    }
+
+    * { box-sizing: border-box; }
+
+    body {
+      margin: 0;
+      min-height: 100vh;
+      color: var(--text);
+      font-family: var(--font-main);
+      background-color: var(--bg);
+      background-image:
+        radial-gradient(circle at 84% 8%, rgba(0, 200, 255, 0.04), transparent 32%),
+        radial-gradient(circle at 8% 86%, rgba(255, 59, 107, 0.03), transparent 30%),
+        radial-gradient(circle, #1A3A5015 1px, transparent 1px);
+      background-size: auto, auto, 28px 28px;
+      letter-spacing: 0;
+    }
+
+    button, input, select { font: inherit; }
+
+    main {
+      width: min(1440px, calc(100% - 48px));
+      margin: 0 auto;
+      padding: 34px 0 56px;
+    }
+
+    .hidden { display: none !important; }
+
+    .loading-overlay {
+      position: fixed;
+      inset: 0;
+      z-index: 100;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: 22px;
+      padding: 28px;
+      background: rgba(5, 10, 15, 0.92);
+      backdrop-filter: blur(12px);
+      opacity: 0;
+      pointer-events: none;
+      transition: opacity 0.3s ease;
+    }
+    .loading-overlay.visible {
+      opacity: 1;
+      pointer-events: all;
+    }
+    .loading-ring {
+      width: 64px;
+      height: 64px;
+      border: 3px solid var(--primary-dim);
+      border-top-color: var(--primary);
+      border-radius: 50%;
+      animation: spin 0.9s linear infinite;
+    }
+    .loading-title {
+      color: var(--text);
+      font: 600 18px var(--font-main);
+      letter-spacing: -0.02em;
+    }
+    .loading-step {
+      min-height: 19px;
+      color: var(--text-sub);
+      font: 13px var(--font-mono);
+      text-align: center;
+    }
+    .loading-progress {
+      width: min(360px, 72vw);
+      height: 3px;
+      overflow: hidden;
+      border-radius: 2px;
+      background: var(--border);
+    }
+    .loading-progress-bar {
+      width: 0%;
+      height: 100%;
+      border-radius: inherit;
+      background: var(--primary);
+      box-shadow: 0 0 16px var(--primary-dim);
+      transition: width 0.4s ease;
+    }
+
+    .section {
+      margin: 0 0 28px;
+      opacity: 0;
+      transform: translateY(20px);
+      animation: fadeUp 0.6s ease forwards;
+    }
+    .section[data-delay="1"] { animation-delay: 0.08s; }
+    .section[data-delay="2"] { animation-delay: 0.16s; }
+    .section[data-delay="3"] { animation-delay: 0.24s; }
+    .section[data-delay="4"] { animation-delay: 0.32s; }
+    .section[data-delay="5"] { animation-delay: 0.40s; }
+
+    @keyframes fadeUp {
+      from { opacity: 0; transform: translateY(20px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+
+    .section-head {
+      display: flex;
+      align-items: end;
+      justify-content: space-between;
+      gap: 20px;
+      margin-bottom: 16px;
+    }
+    .section-title {
+      margin: 0;
+      font-size: 24px;
+      font-weight: 600;
+      letter-spacing: -0.02em;
+    }
+    .section-title span {
+      color: var(--primary);
+      font-family: var(--font-mono);
+      font-size: 18px;
+      letter-spacing: 0;
+    }
+    .section-desc {
+      margin: 6px 0 0;
+      color: var(--text-sub);
+      font-size: 14px;
+    }
+
+    .panel, .upload-card, .metric-card, .mutation-card {
+      border: 1px solid var(--border);
+      border-top-color: #1A5070;
+      border-radius: var(--radius-lg);
+      background: var(--bg-panel);
+      transition: var(--transition);
+    }
+    .panel:hover, .upload-card:hover, .metric-card:hover, .mutation-card:hover {
+      border-color: var(--primary-dim);
+      box-shadow: 0 0 30px var(--border-glow);
+      transform: translateY(-2px);
+    }
+
+    .upload-grid {
+      display: grid;
+      grid-template-columns: repeat(5, minmax(0, 1fr));
+      gap: 14px;
+    }
+    .upload-card {
+      position: relative;
+      min-height: 178px;
+      padding: 18px;
+      cursor: pointer;
+      border-style: dashed;
+    }
+    .upload-card.ready {
+      border-color: var(--success);
+      background: rgba(0, 255, 178, 0.04);
+    }
+    .upload-card.error {
+      border-color: var(--danger);
+      background: rgba(255, 59, 107, 0.04);
+    }
+    .upload-card.drag {
+      border-color: var(--primary);
+      box-shadow: 0 0 24px var(--border-glow);
+    }
+    .file-icon {
+      width: 34px;
+      height: 34px;
+      display: grid;
+      place-items: center;
+      margin-bottom: 16px;
+      color: var(--primary);
+      border: 1px solid var(--primary-dim);
+      border-radius: var(--radius);
+      font-family: var(--font-mono);
+    }
+    .file-code {
+      color: var(--text);
+      font: 12px var(--font-mono);
+      overflow-wrap: anywhere;
+    }
+    .file-label {
+      margin-top: 5px;
+      color: var(--text-sub);
+      font-size: 14px;
+    }
+    .upload-line {
+      height: 1px;
+      margin: 18px 0 13px;
+      background: var(--border);
+    }
+    .upload-hint, .file-message {
+      color: var(--text-muted);
+      font-size: 13px;
+      line-height: 1.45;
+    }
+    .file-message {
+      margin-top: 8px;
+      color: var(--success);
+      overflow-wrap: anywhere;
+    }
+    .upload-card.error .file-message { color: var(--danger); }
+    .check-badge {
+      position: absolute;
+      top: 12px;
+      right: 12px;
+      display: none;
+      padding: 2px 7px;
+      color: var(--success);
+      border: 1px solid rgba(0, 255, 178, 0.35);
+      border-radius: 4px;
+      background: rgba(0, 255, 178, 0.08);
+      font: 12px var(--font-mono);
+    }
+    .upload-card.ready .check-badge { display: block; }
+    .file-input { display: none; }
+    .action-row {
+      display: flex;
+      justify-content: flex-end;
+      gap: 12px;
+      margin-top: 18px;
+    }
+    .btn {
+      min-height: 42px;
+      padding: 10px 24px;
+      color: var(--primary);
+      border: 1px solid var(--primary);
+      border-radius: var(--radius);
+      background: transparent;
+      font-weight: 500;
+      letter-spacing: 0.05em;
+      cursor: pointer;
+      transition: var(--transition);
+    }
+    .btn:hover:not(:disabled) {
+      color: #000;
+      background: var(--primary);
+      box-shadow: 0 0 20px var(--primary-dim);
+    }
+    .btn:disabled {
+      opacity: 0.3;
+      cursor: not-allowed;
+    }
+    .btn.ready { animation: pulse 1.4s ease-in-out infinite; }
+    .btn.danger {
+      color: var(--danger);
+      border-color: var(--danger);
+    }
+    .btn.danger:hover:not(:disabled) {
+      color: #000;
+      background: var(--danger);
+      box-shadow: 0 0 20px var(--danger-dim);
+    }
+    .btn.full { width: 100%; }
+    @keyframes pulse {
+      0%, 100% { box-shadow: 0 0 0 var(--primary-dim); }
+      50% { box-shadow: 0 0 22px var(--primary-dim); }
+    }
+    .spinner {
+      display: inline-block;
+      width: 16px;
+      height: 16px;
+      margin-right: 8px;
+      vertical-align: -3px;
+      border: 2px solid var(--primary-dim);
+      border-top-color: var(--primary);
+      border-radius: 50%;
+      animation: spin 0.75s linear infinite;
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    .viewer-shell { padding: 0; overflow: hidden; }
+    .tabs {
+      display: flex;
+      gap: 4px;
+      padding: 0 18px;
+      border-bottom: 1px solid var(--border);
+    }
+    .viewer-controls {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      gap: 10px;
+      padding: 14px 18px;
+      border-bottom: 1px solid var(--border);
+      background: rgba(5, 10, 15, 0.42);
+    }
+    .viewer-btn {
+      min-height: 34px;
+      padding: 7px 12px;
+      color: var(--text-sub);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      background: transparent;
+      cursor: pointer;
+      transition: var(--transition);
+      font-size: 13px;
+    }
+    .viewer-btn:hover,
+    .viewer-btn.active {
+      color: #000;
+      border-color: var(--primary);
+      background: var(--primary);
+      box-shadow: 0 0 16px var(--primary-dim);
+    }
+    .tab {
+      position: relative;
+      padding: 16px 14px 13px;
+      color: var(--text-sub);
+      border: 0;
+      border-bottom: 2px solid transparent;
+      background: transparent;
+      cursor: pointer;
+      transition: var(--transition);
+    }
+    .tab.active {
+      color: var(--primary);
+      border-bottom-color: var(--primary);
+    }
+    .tab.mutation::before {
+      content: "●";
+      margin-right: 6px;
+      color: var(--danger);
+      font-size: 10px;
+    }
+    .viewer-wrap {
+      position: relative;
+      height: 520px;
+      border-radius: 0 0 var(--radius-lg) var(--radius-lg);
+      background: #000;
+    }
+    #viewer3d {
+      position: absolute;
+      inset: 0;
+      width: 100%;
+      height: 100%;
+    }
+    .viewer-overlay {
+      position: absolute;
+      left: 18px;
+      bottom: 18px;
+      width: min(340px, calc(100% - 36px));
+      padding: 16px;
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      background: rgba(10, 21, 32, 0.85);
+      backdrop-filter: blur(10px);
+      pointer-events: none;
+    }
+    .overlay-name { margin: 0 0 8px; font-weight: 600; }
+    .overlay-row {
+      display: flex;
+      justify-content: space-between;
+      gap: 12px;
+      color: var(--text-sub);
+      font-size: 13px;
+      line-height: 1.8;
+    }
+    .mono { font-family: var(--font-mono); }
+    .danger-text { color: var(--danger); }
+
+    .search-grid {
+      display: grid;
+      grid-template-columns: 35% 1fr;
+      gap: 18px;
+    }
+    .control-panel, .results-panel, .chart-panel { padding: 22px; }
+    .eyebrow {
+      margin: 0 0 16px;
+      color: var(--text-sub);
+      font: 11px var(--font-mono);
+      letter-spacing: 0.1em;
+    }
+    .field { margin-bottom: 22px; }
+    .field label {
+      display: block;
+      margin-bottom: 9px;
+      color: var(--text-sub);
+      font-size: 13px;
+    }
+    select {
+      width: 100%;
+      padding: 12px 14px;
+      color: var(--text);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      background: var(--bg);
+      outline: none;
+    }
+    select:focus { border-color: var(--danger); }
+    .range-head {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 10px;
+    }
+    #radiusValue {
+      color: var(--primary);
+      font: 20px var(--font-mono);
+    }
+    input[type="range"] {
+      width: 100%;
+      accent-color: var(--primary);
+      cursor: pointer;
+    }
+    .empty-results {
+      min-height: 330px;
+      display: grid;
+      place-items: center;
+      color: var(--text-muted);
+      text-align: center;
+    }
+    .metric-grid {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 14px;
+    }
+    .metric-card { padding: 18px; }
+    .metric-label {
+      color: var(--text-sub);
+      font: 11px var(--font-mono);
+      letter-spacing: 0.1em;
+    }
+    .metric-label.primary { color: var(--primary); }
+    .metric-value {
+      margin: 16px 0 12px;
+      color: var(--text);
+      font: 36px var(--font-mono);
+      line-height: 1;
+    }
+    .metric-value.primary { color: var(--primary); }
+    .metric-divider {
+      height: 1px;
+      margin: 0 0 12px;
+      background: var(--border);
+    }
+    .metric-sub {
+      color: var(--text-sub);
+      font-size: 14px;
+    }
+    .speedup {
+      margin-top: 12px;
+      color: var(--success);
+      font: 13px var(--font-mono);
+    }
+    .match-status {
+      margin: 16px 0;
+      color: var(--success);
+      font-weight: 500;
+    }
+    .match-status.bad { color: var(--danger); }
+    .details-toggle-row {
+      display: flex;
+      justify-content: flex-end;
+      margin-top: 16px;
+    }
+    .result-details {
+      display: none;
+      margin-top: 16px;
+    }
+    .result-details.open { display: block; }
+    .table-wrap {
+      max-height: 380px;
+      overflow: auto;
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+    }
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      min-width: 600px;
+    }
+    th, td {
+      padding: 11px 12px;
+      text-align: left;
+      border-bottom: 1px solid rgba(26, 58, 80, 0.65);
+      font-family: var(--font-mono);
+      font-size: 13px;
+    }
+    th {
+      position: sticky;
+      top: 0;
+      z-index: 1;
+      color: var(--text-sub);
+      background: var(--bg-panel);
+      font-size: 11px;
+      letter-spacing: 0.1em;
+    }
+    tbody tr:nth-child(even) { background: rgba(255,255,255,0.02); }
+    td.distance { color: var(--primary); }
+
+    .chart-panel { position: relative; }
+    .chart-wrap { height: 360px; }
+    .perf-summary {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 16px;
+      margin-top: 18px;
+      padding-top: 18px;
+      border-top: 1px solid var(--border);
+    }
+    .avg-value {
+      color: var(--success);
+      font: 34px var(--font-mono);
+    }
+
+    .mutation-grid {
+      display: grid;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      gap: 18px;
+    }
+    .mutation-card { padding: 22px; }
+    .mutation-card:hover {
+      border-color: var(--danger-dim);
+      box-shadow: 0 8px 30px var(--danger-dim);
+      transform: translateY(-4px);
+    }
+    .badge {
+      display: inline-flex;
+      align-items: center;
+      padding: 2px 8px;
+      color: var(--primary);
+      border: 1px solid #00C8FF44;
+      border-radius: 4px;
+      background: var(--primary-dim);
+      font: 12px var(--font-mono);
+    }
+    .badge.danger {
+      color: var(--danger);
+      border-color: rgba(255, 59, 107, 0.35);
+      background: var(--danger-dim);
+    }
+    .mut-head {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      margin-bottom: 22px;
+      color: var(--text-sub);
+      font-size: 14px;
+    }
+    .aa-change {
+      margin-bottom: 7px;
+      font: 30px var(--font-mono);
+    }
+    .aa-orig { color: var(--text-sub); }
+    .aa-arrow { color: var(--danger); }
+    .aa-mut { color: var(--danger); font-weight: 700; }
+    .mut-resi {
+      color: var(--text-sub);
+      font-size: 14px;
+      margin-bottom: 20px;
+    }
+    .mut-copy {
+      padding-top: 18px;
+      border-top: 1px solid var(--border);
+      color: var(--text-sub);
+      line-height: 1.65;
+    }
+    .mutation-card.overview { grid-column: 1 / -1; }
+    .mut-detail {
+      margin-top: 14px;
+      color: var(--text);
+      font-size: 13px;
+      line-height: 1.65;
+    }
+    .mut-detail strong {
+      color: var(--primary);
+      font-weight: 600;
+    }
+    .mut-source {
+      display: inline-block;
+      margin-top: 14px;
+      color: var(--primary);
+      font: 11px var(--font-mono);
+      text-decoration: none;
+    }
+    .mut-source:hover { text-decoration: underline; }
+
+    @media (max-width: 980px) {
+      .upload-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+      .search-grid { grid-template-columns: 1fr; }
+    }
+    @media (max-width: 768px) {
+      main { width: min(100% - 28px, 1440px); padding-top: 24px; }
+      .section-head { display: block; }
+      .upload-grid, .metric-grid, .mutation-grid { grid-template-columns: 1fr; }
+      .tabs { overflow-x: auto; }
+      .viewer-wrap { height: 430px; }
+      .perf-summary { align-items: flex-start; flex-direction: column; }
+    }
+  </style>
+</head>
+<body>
+  <div class="loading-overlay" id="loadingOverlay">
+    <div class="loading-ring"></div>
+    <div class="loading-title">분석 중...</div>
+    <div class="loading-step" id="loadingStep">① 기준 구조 KD-Tree 사전 빌드 중...</div>
+    <div class="loading-progress">
+      <div class="loading-progress-bar" id="loadingProgressBar"></div>
+    </div>
+  </div>
+
+  <main>
+    <section class="section" id="inputSection">
+      <div class="section-head">
+        <div>
+          <h1 class="section-title">데이터 입력</h1>
+          <p class="section-desc">PDB 파일 5개를 업로드하면 분석이 시작됩니다</p>
+        </div>
+      </div>
+      <div class="upload-grid" id="uploadGrid"></div>
+      <div class="action-row">
+        <button class="btn" id="startBtn" disabled>분석 시작</button>
+      </div>
+    </section>
+
+    <section class="section hidden" data-delay="1" id="viewerSection">
+      <div class="section-head">
+        <div>
+          <h2 class="section-title">3D 구조 뷰어</h2>
+          <p class="section-desc">하나의 3D 뷰어에서 구조를 전환하며 확인합니다</p>
+        </div>
+      </div>
+      <div class="panel viewer-shell">
+        <div class="viewer-controls">
+          <button class="viewer-btn" id="atomToggleBtn" type="button">원자</button>
+          <button class="viewer-btn" id="insulinBindingBtn" type="button">인슐린 표시</button>
+        </div>
+        <div class="tabs" id="viewerTabs"></div>
+        <div class="viewer-wrap">
+          <div id="viewer3d"></div>
+          <div class="viewer-overlay" id="viewerOverlay"></div>
+        </div>
+      </div>
+    </section>
+
+    <section class="section hidden" data-delay="2" id="searchSection">
+      <div class="section-head">
+        <div>
+          <h2 class="section-title">돌연변이 탐색</h2>
+          <p class="section-desc">각 변이에 맞는 기준 구조에서 돌연변이 CA 주변 원자를 탐색합니다</p>
+        </div>
+      </div>
+      <div class="search-grid">
+        <div class="panel control-panel">
+          <p class="eyebrow">탐색 설정</p>
+          <div class="field">
+            <label for="mutationSelect">돌연변이 선택</label>
+            <select id="mutationSelect">
+              <option value="V657F">V657F</option>
+              <option value="T107R">T107R</option>
+              <option value="R1201Q">R1201Q</option>
+            </select>
+          </div>
+          <div class="field">
+            <div class="range-head">
+              <label for="radiusRange">탐색 반경</label>
+              <span id="radiusValue">8.0 Å</span>
+            </div>
+            <input id="radiusRange" type="range" min="5" max="15" value="8" step="0.1">
+          </div>
+          <button class="btn danger full" id="searchBtn">계산하기</button>
+        </div>
+        <div class="panel results-panel" id="resultsPanel">
+          <div class="empty-results">탐색을 실행하면 결과가 여기에 표시됩니다</div>
+        </div>
+      </div>
+    </section>
+
+    <section class="section hidden" data-delay="3" id="performanceSection">
+      <div class="section-head">
+        <div>
+          <h2 class="section-title">성능 비교</h2>
+          <p class="section-desc">변이의 위험성이 아니라 두 탐색 방법의 속도를 비교합니다</p>
+        </div>
+        <button class="btn" id="downloadChartBtn">PNG로 저장</button>
+      </div>
+      <div class="panel chart-panel">
+        <div class="chart-wrap">
+          <canvas id="speedChart"></canvas>
+        </div>
+        <div class="perf-summary">
+          <div>
+            <div class="eyebrow">AVERAGE SPEEDUP</div>
+            <div class="section-desc">같은 반경 탐색을 수행했을 때의 평균 속도 향상</div>
+          </div>
+          <div class="avg-value" id="avgSpeedup">0.0×</div>
+        </div>
+      </div>
+    </section>
+
+    <section class="section hidden" data-delay="4" id="mutationInfoSection">
+      <div class="section-head">
+        <div>
+          <h2 class="section-title">돌연변이 정보</h2>
+          <p class="section-desc">선택한 돌연변이가 왜 문제가 되는지 쉽게 정리합니다</p>
+        </div>
+      </div>
+      <div class="mutation-grid" id="mutationCards"></div>
+    </section>
+
+  </main>
+
+  <script>
+    const SYNTH_N = 100000;
+    const BENCH_REPS = 50;
+    const COMPLEX_RECEPTOR_CHAINS = ['A', 'B', 'C', 'D'];
+    const COMPLEX_INSULIN_CHAINS = ['E', 'F', 'G', 'H', 'I', 'J', 'K', 'L'];
+    const COMPLEX_CHAINS = [...COMPLEX_RECEPTOR_CHAINS, ...COMPLEX_INSULIN_CHAINS];
+    const REQUIRED_FILES = [
+      { key: 'complex_6sof', fileName: '6SOF.pdb', label: '실제 인슐린-INSR 결합 복합체', chains: COMPLEX_CHAINS },
+      { key: 'insr_normal', fileName: 'insr_normal.pdb', label: 'AlphaFold 정상 INSR' },
+      { key: 'V657F', fileName: '6SOF_V657F.pdb', label: 'V657F 변이 복합체' },
+      { key: 'T107R', fileName: '6SOF_T107R.pdb', label: 'T107R 변이 복합체' },
+      { key: 'R1201Q', fileName: 'insr_R1201Q.pdb', label: 'R1201Q 세포 안쪽 신호 변이 구조' }
+    ];
+
+    const MUTATIONS = {
+      V657F: {
+        resi: 630,
+        chain: 'A',
+        fullLengthResi: 657,
+        orig: 'VAL',
+        mut: 'PHE',
+        domain: 'FnIII-2 도메인',
+        referenceKey: 'complex_6sof',
+        viewerResidues: [{ chain: 'A', resi: 630 }, { chain: 'C', resi: 630 }],
+        bindingAnalysis: true,
+        numberNote: '원래 INSR 단백질 번호는 657번입니다. 6SOF 구조에서는 앞쪽 일부가 빠져 있어서 PDB 번호가 630번으로 보입니다. 둘 다 같은 위치를 가리킵니다.',
+        note: '인슐린 수용체는 세포가 인슐린 신호를 받는 안테나입니다. V657F는 이 안테나가 제대로 만들어지는 부분에 생긴 변화입니다.',
+        mechanism: '657번 자리의 작은 부품(Val)이 더 큰 부품(Phe)으로 바뀝니다. 그래서 수용체가 접히고 완성되는 과정이 흐트러질 수 있습니다.',
+        consequence: '수용체가 잘 완성되지 않으면 세포 표면에서 인슐린 신호를 받기 어려워집니다. 그래서 인슐린이 충분히 있어도 세포가 포도당을 흡수하지 못하는 <strong>\'극심한 인슐린 저항성\'</strong>이 발생하며, 이는 \'도노휴 증후군\' 같은 심각한 유전 질환의 직접적인 원인이 됩니다.',
+        sourceLabel: 'V657F 보고 논문',
+        sourceUrl: 'https://keio.elsevierpure.com/en/publications/structural-basis-and-genotypephenotype-correlations-of-insr-mutat'
+      },
+      T107R: {
+        resi: 80,
+        chain: 'A',
+        fullLengthResi: 107,
+        orig: 'THR',
+        mut: 'ARG',
+        domain: 'L1 도메인',
+        referenceKey: 'complex_6sof',
+        viewerResidues: [{ chain: 'A', resi: 80 }, { chain: 'C', resi: 80 }],
+        bindingAnalysis: true,
+        numberNote: '원래 INSR 단백질 번호는 107번입니다. 6SOF 구조에서는 PDB 번호가 80번으로 보입니다. 6SOF에 없는 앞쪽 서열 때문에 번호가 밀린 것입니다.',
+        note: 'T107R은 인슐린이 수용체에 처음 닿는 입구 쪽 변화입니다. 도노휴 증후군 사례에서 보고되었습니다.',
+        mechanism: '107번 자리의 작은 부품(Thr)이 더 크고 전하를 띠는 부품(Arg)으로 바뀝니다. 입구 모양이 달라져 인슐린을 알아보기 어려워질 수 있습니다.',
+        consequence: '세포는 주변에 인슐린이 아무리 많아도 “당을 흡수하라”는 명령을 받지 못하며, 이는 도노휴 증후군 환자들이 겪는 극심한 인슐린 저항성의 직접적인 원인이 됩니다.',
+        sourceLabel: 'T107R 보고 논문',
+        sourceUrl: 'https://www.jcrpe.org/articles/syndrome-of-congenital-insulin-resistance-caused-by-a-novel-insr-gene-mutation/doi/jcrpe.galenos.2021.2021.0256'
+      },
+      R1201Q: {
+        resi: 1201,
+        chain: 'A',
+        oldResi: 1174,
+        orig: 'ARG',
+        mut: 'GLN',
+        domain: '티로신 키나아제 도메인',
+        referenceKey: 'insr_normal',
+        viewerResidues: [{ chain: 'A', resi: 1201 }],
+        bindingAnalysis: false,
+        numberNote: '예전 문헌에서는 R1174Q라고도 부릅니다. 현재 기준 번호로 정리하면 R1201Q입니다. 이 앱에서는 현재 기준인 1201번을 사용합니다.',
+        note: 'R1201Q는 인슐린이 붙는 입구가 아니라 세포 안쪽 신호 스위치에 있는 변화입니다. 그래서 6SOF 결합 복합체에는 이 위치가 없습니다.',
+        mechanism: '1201번 자리의 양전하를 띤 Arg(아르기닌)가 전하가 없는 Gln(글루타민)으로 바뀝니다. 이렇게 되면 단백질 내부의 결합력이 떨어져 스위치 구조가 무너집니다. 인슐린이 바깥쪽 안테나에 정상적으로 붙더라도, 안쪽 스위치가 망가져서 다음 신호를 제대로 켜지 못하게 됩니다.',
+        consequence: '따라서 R1201Q는 “인슐린이 못 붙는다”가 아니라 <strong>”인슐린이 붙어도 세포 안으로 신호가 전달되지 않는다”</strong>로 이해해야 합니다. 이 역시 세포가 포도당을 흡수하지 못하게 만들어, 도노휴 증후군과 같은 심각한 인슐린 저항성 질환을 유발합니다.',
+        sourceLabel: 'R1201Q 기록',
+        sourceUrl: 'https://www.ncbi.nlm.nih.gov/clinvar/RCV000125461/'
+      }
+    };
+
+    const VIEWER_TABS = [
+      { key: 'complex_6sof', label: '6SOF 결합 복합체', complex: true },
+      { key: 'insr_normal', label: '정상 INSR' },
+      { key: 'V657F', label: 'V657F', mutation: true },
+      { key: 'T107R', label: 'T107R', mutation: true },
+      { key: 'R1201Q', label: 'R1201Q', mutation: true }
+    ];
+
+    const app = {
+      files: {},
+      pdbText: {},
+      atoms: {},
+      chart: null,
+      viewer: null,
+      activeViewerKey: 'complex_6sof',
+      infoMutationKey: null,
+      searchResults: {},
+      latestHighlight: [],
+      latestHighlightIndices: [],
+      latestSearch: null,
+      kdTrees: {},
+      kdTreeBuildMs: {},
+      synthPoints: null,
+      synthKDRoot: null,
+      synthBounds: null,
+      synthCenter: null,
+      synthBruteTimeMs: null,
+      synthKDCache: {},
+      showAtoms: false,
+      showInsulinBinding: false,
+      detailsOpen: false,
+      selectedMutation: 'V657F',
+      searchRunId: 0,
+      animationRunId: 0,
+      benchmarkCache: {}
+    };
+
+    const uploadGrid = document.getElementById('uploadGrid');
+    const startBtn = document.getElementById('startBtn');
+    const viewerTabs = document.getElementById('viewerTabs');
+    const viewerOverlay = document.getElementById('viewerOverlay');
+    const mutationSelect = document.getElementById('mutationSelect');
+    const radiusRange = document.getElementById('radiusRange');
+    const radiusValue = document.getElementById('radiusValue');
+    const searchBtn = document.getElementById('searchBtn');
+    const resultsPanel = document.getElementById('resultsPanel');
+    const avgSpeedup = document.getElementById('avgSpeedup');
+    const loadingOverlay = document.getElementById('loadingOverlay');
+    const loadingStep = document.getElementById('loadingStep');
+    const loadingProgressBar = document.getElementById('loadingProgressBar');
+    const atomToggleBtn = document.getElementById('atomToggleBtn');
+    const insulinBindingBtn = document.getElementById('insulinBindingBtn');
+
+    function init() {
+      renderUploadCards();
+      renderViewerTabs();
+      renderMutationCards();
+      bindControls();
+    }
+
+    function renderUploadCards() {
+      uploadGrid.innerHTML = REQUIRED_FILES.map((item) => `
+        <label class="upload-card" data-key="${item.key}">
+          <input class="file-input" type="file" accept=".pdb,.ent,.txt" data-key="${item.key}">
+          <span class="check-badge">✓</span>
+          <div class="file-icon">PDB</div>
+          <div class="file-code">${item.fileName}</div>
+          <div class="file-label">${item.label}</div>
+          <div class="upload-line"></div>
+          <div class="upload-hint">파일을 끌어다 놓거나<br>클릭해서 업로드</div>
+          <div class="file-message" data-message="${item.key}"></div>
+        </label>
+      `).join('');
+
+      document.querySelectorAll('.upload-card').forEach((card) => {
+        const key = card.dataset.key;
+        const input = card.querySelector('input');
+        input.addEventListener('change', (event) => handlePickedFile(key, event.target.files[0]));
+        card.addEventListener('dragover', (event) => {
+          event.preventDefault();
+          card.classList.add('drag');
+        });
+        card.addEventListener('dragleave', () => card.classList.remove('drag'));
+        card.addEventListener('drop', (event) => {
+          event.preventDefault();
+          card.classList.remove('drag');
+          handlePickedFile(key, event.dataTransfer.files[0]);
+        });
+      });
+    }
+
+    async function handlePickedFile(key, file) {
+      if (!file) return;
+      const spec = REQUIRED_FILES.find((item) => item.key === key);
+      const card = document.querySelector(`.upload-card[data-key="${key}"]`);
+      const message = document.querySelector(`[data-message="${key}"]`);
+
+      try {
+        if (file.name !== spec.fileName) {
+          throw new Error(`${spec.fileName} 파일이 필요합니다`);
+        }
+        const text = await file.text();
+        const atoms = parsePDB(text, spec.chains);
+        if (!atoms.length) {
+          throw new Error('ATOM 레코드를 찾지 못했습니다');
+        }
+        validateLoadedFile(key, atoms);
+        app.files[key] = file;
+        app.pdbText[key] = text;
+        app.atoms[key] = atoms;
+        app.benchmarkCache = {};
+        app.kdTrees = {};
+        app.kdTreeBuildMs = {};
+        card.classList.remove('error');
+        card.classList.add('ready');
+        message.textContent = `${file.name} · ${atoms.length.toLocaleString()} atoms`;
+      } catch (error) {
+        delete app.files[key];
+        delete app.pdbText[key];
+        delete app.atoms[key];
+        card.classList.remove('ready');
+        card.classList.add('error');
+        message.textContent = error.message;
+      }
+
+      syncStartButton();
+    }
+
+    function syncStartButton() {
+      const ready = REQUIRED_FILES.every((item) => app.files[item.key]);
+      startBtn.disabled = !ready;
+      startBtn.classList.toggle('ready', ready);
+    }
+
+    function validateLoadedFile(key, atoms) {
+      if (key === 'complex_6sof') {
+        ensureChains(atoms, COMPLEX_RECEPTOR_CHAINS, '6SOF INSR 체인');
+        ensureChains(atoms, COMPLEX_INSULIN_CHAINS, '6SOF 인슐린 체인');
+        ensureResidue(atoms, 'A', 80, 'THR', '6SOF T107 기준 위치');
+        ensureResidue(atoms, 'C', 80, 'THR', '6SOF T107 기준 위치');
+        ensureResidue(atoms, 'A', 630, 'VAL', '6SOF V657 기준 위치');
+        ensureResidue(atoms, 'C', 630, 'VAL', '6SOF V657 기준 위치');
+      }
+      if (key === 'V657F') {
+        ensureModeledResidue(atoms, 'A', 630, 'PHE', ['CD1', 'CD2', 'CE1', 'CE2', 'CZ']);
+        ensureModeledResidue(atoms, 'C', 630, 'PHE', ['CD1', 'CD2', 'CE1', 'CE2', 'CZ']);
+        ensureChains(atoms, COMPLEX_INSULIN_CHAINS, '6SOF 인슐린 체인');
+      }
+      if (key === 'T107R') {
+        ensureModeledResidue(atoms, 'A', 80, 'ARG', ['CG', 'CD', 'NE', 'CZ', 'NH1', 'NH2']);
+        ensureModeledResidue(atoms, 'C', 80, 'ARG', ['CG', 'CD', 'NE', 'CZ', 'NH1', 'NH2']);
+        ensureChains(atoms, COMPLEX_INSULIN_CHAINS, '6SOF 인슐린 체인');
+      }
+      if (key === 'R1201Q') {
+        ensureModeledResidue(atoms, 'A', 1201, 'GLN', ['CG', 'CD', 'OE1', 'NE2']);
+      }
+    }
+
+    function ensureChains(atoms, chains, label) {
+      const present = new Set(atoms.map((atom) => atom.chainID));
+      const missing = chains.filter((chain) => !present.has(chain));
+      if (missing.length) {
+        throw new Error(`${label} ${missing.join(', ')}을 찾지 못했습니다`);
+      }
+    }
+
+    function ensureResidue(atoms, chain, resi, resName, label) {
+      const found = atoms.some((atom) => atom.chainID === chain && atom.resNum === resi && atom.resName === resName);
+      if (!found) {
+        throw new Error(`${label}: ${chain}:${resi} ${resName} 잔기를 찾지 못했습니다`);
+      }
+    }
+
+    function ensureModeledResidue(atoms, chain, resi, resName, requiredAtoms) {
+      const residueAtoms = atoms.filter((atom) => atom.chainID === chain && atom.resNum === resi);
+      const atomNames = new Set(residueAtoms.map((atom) => atom.atomName));
+      if (!residueAtoms.length || residueAtoms.some((atom) => atom.resName !== resName)) {
+        throw new Error(`${chain}:${resi} 위치가 실제 ${resName} 변이로 모델링되지 않았습니다`);
+      }
+      const missing = requiredAtoms.filter((atomName) => !atomNames.has(atomName));
+      if (missing.length) {
+        throw new Error(`${chain}:${resi} ${resName} side-chain 원자(${missing.join(', ')})가 없습니다`);
+      }
+    }
+
+    function bindControls() {
+      startBtn.addEventListener('click', startAnalysis);
+      radiusRange.addEventListener('input', () => {
+        radiusValue.textContent = `${Number(radiusRange.value).toFixed(1)} Å`;
+        updateRadiusPreview();
+      });
+      searchBtn.addEventListener('click', () => runInteractiveSearch());
+      mutationSelect.addEventListener('change', () => {
+        app.selectedMutation = mutationSelect.value;
+        app.infoMutationKey = mutationSelect.value;
+        renderMutationCards();
+        updateRadiusPreview();
+      });
+      atomToggleBtn.addEventListener('click', () => {
+        app.showAtoms = !app.showAtoms;
+        atomToggleBtn.classList.toggle('active', app.showAtoms);
+        if (!document.getElementById('viewerSection').classList.contains('hidden')) {
+          renderViewer();
+        }
+      });
+      insulinBindingBtn.addEventListener('click', () => {
+        app.showInsulinBinding = !app.showInsulinBinding;
+        syncViewerModeButtons();
+        if (!document.getElementById('viewerSection').classList.contains('hidden')) {
+          renderViewer();
+        }
+      });
+      document.getElementById('downloadChartBtn').addEventListener('click', downloadChart);
+      window.addEventListener('resize', () => {
+        if (app.viewer) {
+          app.viewer.resize();
+          app.viewer.render();
+        }
+      });
+    }
+
+    function updateRadiusPreview() {
+      const mutationName = mutationSelect.value;
+      const radius = Number(Number(radiusRange.value).toFixed(1));
+      if (!app.atoms[mutationName]) return;
+      app.infoMutationKey = mutationName;
+      renderMutationCards();
+
+      let caAtom;
+      try {
+        caAtom = getMutationCA(mutationName);
+      } catch (error) {
+        return;
+      }
+
+      const matchingResult = app.searchResults[mutationName];
+      const hasMatchingResult = matchingResult && Number(matchingResult.radius).toFixed(1) === radius.toFixed(1);
+      app.latestSearch = { mutationName, radius, caAtom, referenceKey: MUTATIONS[mutationName].referenceKey };
+      app.latestHighlight = hasMatchingResult
+        ? matchingResult.brute.results.map((item) => item.atom)
+        : [];
+      app.latestHighlightIndices = hasMatchingResult
+        ? matchingResult.brute.results.map((item) => item.atomIndex)
+        : [];
+
+      const viewerSection = document.getElementById('viewerSection');
+      if (!viewerSection.classList.contains('hidden')) {
+        app.activeViewerKey = mutationName;
+        syncViewerModeButtons();
+        renderViewer();
+      }
+    }
+
+    function parsePDB(text, allowedChains = null) {
+      const allowed = allowedChains ? new Set(allowedChains) : null;
+      return text.split(/\r?\n/).reduce((atoms, line) => {
+        if (!line.startsWith('ATOM')) return atoms;
+        const chainID = line.substring(21, 22).trim();
+        if (allowed && !allowed.has(chainID)) return atoms;
+        const atom = {
+          atomNum: Number.parseInt(line.substring(6, 11).trim(), 10),
+          atomName: line.substring(12, 16).trim(),
+          resName: line.substring(17, 20).trim(),
+          chainID,
+          resNum: Number.parseInt(line.substring(22, 26).trim(), 10),
+          x: Number.parseFloat(line.substring(30, 38)),
+          y: Number.parseFloat(line.substring(38, 46)),
+          z: Number.parseFloat(line.substring(46, 54)),
+          element: line.substring(76, 78).trim() || line.substring(12, 16).trim().replace(/[^A-Za-z]/g, '').charAt(0)
+        };
+        if ([atom.atomNum, atom.resNum, atom.x, atom.y, atom.z].some(Number.isNaN)) return atoms;
+        atom.point = [atom.x, atom.y, atom.z];
+        atoms.push(atom);
+        return atoms;
+      }, []);
+    }
+
+    async function startAnalysis() {
+      lockScroll();
+      showLoading();
+      startBtn.disabled = true;
+      startBtn.classList.remove('ready');
+
+      try {
+        setLoadingStep('① 기준 구조 KD-Tree 빌드 중...', 0);
+        await sleep(40);
+        buildReferenceKDTrees();
+        app.benchmarkCache = {};
+        app.searchResults = {};
+        app.latestHighlight = [];
+        app.latestHighlightIndices = [];
+        app.latestSearch = null;
+        setLoadingStep(`② 합성 벤치마크 데이터 생성 중... (${SYNTH_N.toLocaleString()}개 포인트)`, 50);
+        await sleep(80);
+        setLoadingStep('준비 완료', 100);
+        await sleep(160);
+        mutationSelect.value = 'V657F';
+        app.selectedMutation = 'V657F';
+        app.activeViewerKey = 'complex_6sof';
+        app.infoMutationKey = null;
+        app.detailsOpen = false;
+        document.getElementById('inputSection').classList.add('hidden');
+        document.getElementById('searchSection').classList.remove('hidden');
+        unlockScroll();
+        hideLoading();
+        document.getElementById('searchSection').scrollIntoView({ behavior: 'smooth' });
+        startBtn.textContent = '분석 완료';
+      } catch (error) {
+        unlockScroll();
+        hideLoading();
+        startBtn.disabled = false;
+        startBtn.textContent = '분석 시작';
+        resultsPanel.innerHTML = `<div class="empty-results danger-text">${error.message}</div>`;
+      }
+    }
+
+    function finishInitialAnalysis() {
+      setLoadingStep('④ 3D 구조 렌더링 중... (완료 후 스크롤 가능)', 100);
+      document.getElementById('performanceSection').classList.remove('hidden');
+      renderMutationCards();
+      renderChart();
+      renderAverageSpeedup();
+
+      setTimeout(() => {
+        unlockScroll();
+        hideLoading();
+        document.getElementById('searchSection').scrollIntoView({ behavior: 'smooth' });
+      }, 200);
+    }
+
+    function sleep(ms) {
+      return new Promise((resolve) => setTimeout(resolve, ms));
+    }
+
+    function lockScroll() {
+      document.body.style.overflow = 'hidden';
+      document.body.style.position = 'fixed';
+      document.body.style.width = '100%';
+    }
+
+    function unlockScroll() {
+      document.body.style.overflow = '';
+      document.body.style.position = '';
+      document.body.style.width = '';
+    }
+
+    function showLoading() {
+      setLoadingStep('① 기준 구조 KD-Tree 사전 빌드 중...', 0);
+      loadingOverlay.classList.add('visible');
+    }
+
+    function setLoadingStep(message, percent) {
+      loadingStep.textContent = message;
+      loadingProgressBar.style.width = `${percent}%`;
+    }
+
+    function hideLoading() {
+      loadingOverlay.classList.remove('visible');
+    }
+
+    function renderViewerTabs() {
+      viewerTabs.innerHTML = VIEWER_TABS.map((tab) => `
+        <button class="tab ${tab.mutation ? 'mutation' : ''}" data-viewer-key="${tab.key}">${tab.label}</button>
+      `).join('');
+      viewerTabs.querySelectorAll('.tab').forEach((tab) => {
+        tab.addEventListener('click', () => {
+          const key = tab.dataset.viewerKey;
+          if (MUTATIONS[key]) {
+            app.selectedMutation = key;
+            app.infoMutationKey = key;
+            mutationSelect.value = key;
+          } else {
+            app.infoMutationKey = null;
+          }
+          syncViewerModeButtons();
+          setActiveViewer(key);
+        });
+      });
+    }
+
+    function initViewer() {
+      if (!window.$3Dmol) {
+        throw new Error('3Dmol.js가 아직 로드되지 않았습니다');
+      }
+      const element = document.getElementById('viewer3d');
+      element.innerHTML = '';
+      app.viewer = $3Dmol.createViewer(element, { backgroundColor: 'black' });
+      app.viewer.setBackgroundColor(0x000000);
+    }
+
+    function setActiveViewer(key, options = {}) {
+      app.activeViewerKey = key;
+      if (key === 'complex_6sof') {
+        app.showInsulinBinding = false;
+      }
+      if (MUTATIONS[key]) {
+        app.infoMutationKey = key;
+      } else if (key === 'complex_6sof' || key === 'insr_normal') {
+        app.infoMutationKey = null;
+      }
+      syncViewerModeButtons();
+      renderMutationCards();
+      renderViewer(options);
+    }
+
+    function syncViewerModeButtons() {
+      const canHighlightInsulin = canDisplayInsulin(app.activeViewerKey);
+      atomToggleBtn.classList.toggle('active', app.showAtoms);
+      insulinBindingBtn.hidden = app.activeViewerKey === 'complex_6sof';
+      insulinBindingBtn.classList.toggle('active', app.showInsulinBinding && canHighlightInsulin);
+      insulinBindingBtn.disabled = !canHighlightInsulin;
+      viewerTabs.querySelectorAll('.tab').forEach((tab) => {
+        tab.classList.toggle('active', tab.dataset.viewerKey === app.activeViewerKey);
+      });
+    }
+
+    function hasInsulinChains(key) {
+      return key === 'complex_6sof' || ['V657F', 'T107R'].includes(key);
+    }
+
+    function canDisplayInsulin(key) {
+      if (key === 'complex_6sof') return false;
+      return hasInsulinChains(key) || Boolean(app.pdbText.complex_6sof);
+    }
+
+    function usesReferenceInsulinDisplay(key) {
+      return app.showInsulinBinding && !hasInsulinChains(key) && Boolean(app.pdbText.complex_6sof);
+    }
+
+    function hoverIn(atom, viewer) {
+      if (atom.__label) return;
+      const atomName = atom.atom || atom.elem || '-';
+      const lines = [
+        `원자번호: ${atom.serial ?? '-'}`,
+        `원자이름: ${atomName}`,
+        `잔기: ${atom.resn ?? '-'} ${atom.resi ?? '-'}`,
+        `체인: ${atom.chain ?? '-'}`,
+        `좌표: (${atom.x.toFixed(2)}, ${atom.y.toFixed(2)}, ${atom.z.toFixed(2)})`
+      ].join('\n');
+      atom.__label = viewer.addLabel(lines, {
+        position: { x: atom.x, y: atom.y, z: atom.z },
+        backgroundColor: '#050A0F',
+        fontColor: '#E8F4F8',
+        fontSize: 12,
+        backgroundOpacity: 0.95,
+        borderThickness: 1.2,
+        borderColor: '#00C8FF',
+        inFront: true
+      });
+      viewer.render();
+    }
+
+    function hoverOut(atom, viewer) {
+      if (atom.__label) {
+        viewer.removeLabel(atom.__label);
+        delete atom.__label;
+        viewer.render();
+      }
+    }
+
+    function renderViewer(options = {}) {
+      if (!app.viewer || !app.pdbText[app.activeViewerKey]) return;
+      const viewer = app.viewer;
+      const key = app.activeViewerKey;
+      viewer.clear();
+      viewer.setBackgroundColor(0x000000);
+
+      viewer.addModel(app.pdbText[key], 'pdb');
+      const modelIndex = 0;
+      if (hasInsulinChains(key)) {
+        styleComplexModel(viewer, modelIndex);
+      } else {
+        styleProteinModel(viewer, modelIndex);
+      }
+
+      if (usesReferenceInsulinDisplay(key)) {
+        const referenceInsulin = buildReferenceInsulinModel(key);
+        viewer.addModel(referenceInsulin.pdbText, 'pdb');
+        styleReferenceInsulinModel(viewer, 1);
+        addReferenceInsulinLabel(viewer, referenceInsulin.labelPosition);
+      }
+
+      if (MUTATIONS[key]) {
+        const mut = MUTATIONS[key];
+        getMutationSelections(mut).forEach((selection) => {
+          viewer.setStyle({ model: modelIndex, ...selection }, {
+            sphere: { color: '#FF3B6B', radius: 0.5, opacity: 1.0 }
+          });
+        });
+        viewer.addLabel(`${mutationResidueLabel(mut)}: ${mut.orig}→${mut.mut}`, {
+          position: findCA(app.atoms[key], mut) || { x: 0, y: 0, z: 0 },
+          backgroundColor: 0x0A1520,
+          fontColor: 0xFF3B6B,
+          fontSize: 14,
+          backgroundOpacity: 0.9
+        });
+        drawSearchVisuals(viewer, key);
+        viewer.zoomTo();
+      } else {
+        viewer.zoomTo();
+      }
+
+      viewer.setHoverable({}, true, hoverIn, hoverOut);
+      viewer.render();
+      setTimeout(() => {
+        viewer.resize();
+        viewer.render();
+        if (typeof options.afterRender === 'function') {
+          options.afterRender();
+        }
+      }, 80);
+      renderViewerOverlay();
+    }
+
+    function styleComplexModel(viewer, modelIndex) {
+      const showNativeInsulin = app.activeViewerKey === 'complex_6sof';
+      const showInsulinChains = showNativeInsulin || app.showInsulinBinding;
+      if (app.showAtoms) {
+        COMPLEX_RECEPTOR_CHAINS.forEach((chain) => {
+          viewer.setStyle({ model: modelIndex, chain }, { sphere: { radius: 0.16, colorscheme: 'ssJmol', opacity: 0.62 } });
+        });
+        if (showInsulinChains) {
+          COMPLEX_INSULIN_CHAINS.forEach((chain) => {
+            viewer.setStyle({ model: modelIndex, chain }, { sphere: { radius: 0.32, color: '#00C8FF', opacity: 0.96 } });
+          });
+        }
+      } else {
+        COMPLEX_RECEPTOR_CHAINS.forEach((chain) => {
+          viewer.setStyle({ model: modelIndex, chain }, { cartoon: { color: 'spectrum', opacity: 0.86 } });
+        });
+        if (showInsulinChains) {
+          COMPLEX_INSULIN_CHAINS.forEach((chain) => {
+            viewer.setStyle({ model: modelIndex, chain }, { cartoon: { color: '#00C8FF', thickness: 0.7 } });
+            viewer.addStyle({ model: modelIndex, chain }, { stick: { radius: 0.12, color: '#00C8FF', opacity: 0.85 } });
+          });
+        }
+      }
+    }
+
+    function styleReferenceInsulinModel(viewer, modelIndex) {
+      COMPLEX_INSULIN_CHAINS.forEach((chain) => {
+        if (app.showAtoms) {
+          viewer.setStyle({ model: modelIndex, chain }, { sphere: { radius: 0.36, color: '#00C8FF', opacity: 0.95 } });
+        } else {
+          viewer.setStyle({ model: modelIndex, chain }, { cartoon: { color: '#00C8FF', thickness: 0.9 } });
+          viewer.addStyle({ model: modelIndex, chain }, { stick: { radius: 0.16, color: '#00C8FF', opacity: 0.9 } });
+        }
+      });
+    }
+
+    function buildReferenceInsulinModel(activeKey) {
+      const activeAtoms = app.atoms[activeKey] || [];
+      const insulinAtoms = (app.atoms.complex_6sof || []).filter((atom) => COMPLEX_INSULIN_CHAINS.includes(atom.chainID));
+      if (!activeAtoms.length || !insulinAtoms.length) {
+        return { pdbText: '', labelPosition: { x: 0, y: 0, z: 0 } };
+      }
+
+      const activeBounds = getAtomBounds(activeAtoms);
+      const insulinBounds = getAtomBounds(insulinAtoms);
+      const offset = Math.max(18, activeBounds.maxSpan * 0.22);
+      const targetCenter = {
+        x: activeBounds.center.x + offset,
+        y: activeBounds.center.y,
+        z: activeBounds.center.z
+      };
+      const dx = targetCenter.x - insulinBounds.center.x;
+      const dy = targetCenter.y - insulinBounds.center.y;
+      const dz = targetCenter.z - insulinBounds.center.z;
+
+      const pdbText = insulinAtoms.map((atom, index) => formatPDBAtomLine({
+        ...atom,
+        atomNum: index + 1,
+        x: atom.x + dx,
+        y: atom.y + dy,
+        z: atom.z + dz
+      })).join('\n') + '\nEND\n';
+
+      return { pdbText, labelPosition: targetCenter };
+    }
+
+    function getAtomBounds(atoms) {
+      const bounds = atoms.reduce((acc, atom) => ({
+        minX: Math.min(acc.minX, atom.x),
+        maxX: Math.max(acc.maxX, atom.x),
+        minY: Math.min(acc.minY, atom.y),
+        maxY: Math.max(acc.maxY, atom.y),
+        minZ: Math.min(acc.minZ, atom.z),
+        maxZ: Math.max(acc.maxZ, atom.z)
+      }), {
+        minX: Infinity,
+        maxX: -Infinity,
+        minY: Infinity,
+        maxY: -Infinity,
+        minZ: Infinity,
+        maxZ: -Infinity
+      });
+      const spanX = bounds.maxX - bounds.minX;
+      const spanY = bounds.maxY - bounds.minY;
+      const spanZ = bounds.maxZ - bounds.minZ;
+      return {
+        ...bounds,
+        center: {
+          x: (bounds.minX + bounds.maxX) / 2,
+          y: (bounds.minY + bounds.maxY) / 2,
+          z: (bounds.minZ + bounds.maxZ) / 2
+        },
+        maxSpan: Math.max(spanX, spanY, spanZ)
+      };
+    }
+
+    function formatPDBAtomLine(atom) {
+      const serial = String(atom.atomNum).padStart(5, ' ');
+      const atomName = String(atom.atomName).padStart(atom.atomName.length < 4 ? 4 : atom.atomName.length, ' ').slice(0, 4);
+      const resName = String(atom.resName).padStart(3, ' ').slice(0, 3);
+      const chain = String(atom.chainID || 'A').slice(0, 1);
+      const resNum = String(atom.resNum).padStart(4, ' ');
+      const x = atom.x.toFixed(3).padStart(8, ' ');
+      const y = atom.y.toFixed(3).padStart(8, ' ');
+      const z = atom.z.toFixed(3).padStart(8, ' ');
+      const element = String(atom.element || atom.atomName.charAt(0)).padStart(2, ' ').slice(0, 2);
+      return `ATOM  ${serial} ${atomName} ${resName} ${chain}${resNum}    ${x}${y}${z}  1.00 20.00          ${element}`;
+    }
+
+    function addReferenceInsulinLabel(viewer, position) {
+      viewer.addLabel('6SOF 인슐린 참조 표시', {
+        position,
+        backgroundColor: 0x0A1520,
+        fontColor: 0x00C8FF,
+        fontSize: 13,
+        backgroundOpacity: 0.9
+      });
+    }
+
+    function styleProteinModel(viewer, modelIndex) {
+      if (app.showAtoms) {
+        viewer.setStyle({ model: modelIndex }, { sphere: { radius: 0.18, colorscheme: 'ssJmol', opacity: 0.78 } });
+      } else {
+        viewer.setStyle({ model: modelIndex }, { cartoon: { color: 'spectrum' } });
+      }
+    }
+
+    function getMutationSelections(mutation) {
+      return mutation.viewerResidues || [{ chain: mutation.chain, resi: mutation.resi }];
+    }
+
+    function mutationResidueLabel(mutation) {
+      if (mutation.oldResi) {
+        return `현재 ${mutation.resi}번 / 예전 표기 ${mutation.oldResi}번`;
+      }
+      if (mutation.fullLengthResi && mutation.fullLengthResi !== mutation.resi) {
+        return `단백질 ${mutation.fullLengthResi}번 / PDB ${mutation.resi}번`;
+      }
+      return `단백질 ${mutation.resi}번`;
+    }
+
+    function drawSearchVisuals(viewer, activeKey) {
+      if (!app.latestSearch) return;
+      if (!MUTATIONS[activeKey] || app.latestSearch.mutationName !== activeKey) return;
+      const caAtom = app.latestSearch.caAtom;
+      const radius = app.latestSearch.radius;
+
+      viewer.addSphere({
+        center: { x: caAtom.x, y: caAtom.y, z: caAtom.z },
+        radius,
+        color: '#00C8FF',
+        opacity: 0.18,
+        wireframe: false
+      });
+      viewer.addSphere({
+        center: { x: caAtom.x, y: caAtom.y, z: caAtom.z },
+        radius,
+        color: '#00C8FF',
+        opacity: 0.55,
+        wireframe: true
+      });
+
+      const referenceAtoms = app.atoms[app.latestSearch.referenceKey] || [];
+      const visibleAtoms = app.latestHighlightIndices.length
+        ? app.latestHighlightIndices.map((index) => referenceAtoms[index]).filter(Boolean)
+        : app.latestHighlight;
+
+      visibleAtoms.slice(0, 500).forEach((atom) => {
+        viewer.addSphere({
+          center: { x: atom.x, y: atom.y, z: atom.z },
+          radius: 0.4,
+          color: '#FFB830',
+          opacity: 0.95
+        });
+      });
+
+      if (MUTATIONS[activeKey]) {
+        const mut = MUTATIONS[activeKey];
+        getMutationSelections(mut).forEach((selection) => {
+          const mutationCA = app.atoms[activeKey].find((atom) => (
+            atom.chainID === selection.chain && atom.resNum === selection.resi && atom.atomName === 'CA'
+          ));
+          if (!mutationCA) return;
+          viewer.addSphere({
+            center: { x: mutationCA.x, y: mutationCA.y, z: mutationCA.z },
+            radius: 0.5,
+            color: '#FF3B6B',
+            opacity: 1.0
+          });
+        });
+      }
+    }
+
+    function findCA(atoms, mutation) {
+      const selection = getMutationSelections(mutation)[0];
+      const atom = atoms.find((item) => item.chainID === selection.chain && item.resNum === selection.resi && item.atomName === 'CA');
+      return atom ? { x: atom.x, y: atom.y, z: atom.z } : undefined;
+    }
+
+    function renderViewerOverlay() {
+      const key = app.activeViewerKey;
+      const atoms = app.atoms[key] || [];
+      const chains = [...new Set(atoms.map((atom) => atom.chainID || '-'))].join(', ');
+      const tab = VIEWER_TABS.find((item) => item.key === key);
+      const mut = MUTATIONS[key];
+      const insulinDisplayText = key === 'complex_6sof'
+        ? '복합체에 기본 포함'
+        : app.showInsulinBinding
+        ? (hasInsulinChains(key) ? '복합체 내 인슐린 체인 표시' : '6SOF 인슐린 참조 표시')
+        : '꺼짐';
+      viewerOverlay.innerHTML = `
+        <p class="overlay-name">${tab ? tab.label : key}</p>
+        <div class="overlay-row"><span>총 원자 수</span><span class="mono">${atoms.length.toLocaleString()}개</span></div>
+        <div class="overlay-row"><span>체인 정보</span><span class="mono">${chains}</span></div>
+        <div class="overlay-row"><span>인슐린 표시</span><span>${insulinDisplayText}</span></div>
+        ${mut ? `
+          <div class="overlay-row"><span>돌연변이 위치</span><span class="mono danger-text">${mutationResidueLabel(mut)}</span></div>
+          <div class="overlay-row"><span>변화</span><span class="mono">${mut.orig} → ${mut.mut}</span></div>
+          <div class="overlay-row"><span>위치 설명</span><span>${mut.domain}</span></div>
+          <div class="overlay-row"><span>구조 기준</span><span>${mut.bindingAnalysis ? '6SOF 복합체' : '6SOF 범위 밖'}</span></div>
+        ` : ''}
+        ${app.latestSearch && MUTATIONS[key] && app.latestSearch.mutationName === key ? `
+          <div class="overlay-row"><span>탐색 반경</span><span class="mono" style="color:var(--primary)">${app.latestSearch.radius.toFixed(1)} Å</span></div>
+          <div class="overlay-row"><span>탐색된 원자</span><span class="mono" style="color:var(--warning)">${app.latestHighlight.length.toLocaleString()}개</span></div>
+        ` : ''}
+      `;
+    }
+
+    function bruteForce(atoms, center, radius) {
+      const radiusSq = radius * radius;
+      const results = [];
+      for (let i = 0; i < atoms.length; i += 1) {
+        const atom = atoms[i];
+        const dx = atom.x - center[0];
+        const dy = atom.y - center[1];
+        const dz = atom.z - center[2];
+        const distSq = dx * dx + dy * dy + dz * dz;
+        if (distSq <= radiusSq) {
+          results.push({ atomIndex: i, atom, distance: Math.sqrt(distSq) });
+        }
+      }
+      return results;
+    }
+
+    class KDNode {
+      constructor(point, atomIndex, left = null, right = null) {
+        this.point = point;
+        this.atomIndex = atomIndex;
+        this.left = left;
+        this.right = right;
+      }
+    }
+
+    function buildTree(points, indices, depth = 0) {
+      if (!indices.length) return null;
+      const axis = depth % 3;
+      indices.sort((a, b) => points[a][axis] - points[b][axis]);
+      const mid = Math.floor(indices.length / 2);
+      const atomIndex = indices[mid];
+      return new KDNode(
+        points[atomIndex],
+        atomIndex,
+        buildTree(points, indices.slice(0, mid), depth + 1),
+        buildTree(points, indices.slice(mid + 1), depth + 1)
+      );
+    }
+
+    function searchBall(node, center, radiusSq, results, depth = 0) {
+      if (!node) return;
+      const axis = depth % 3;
+      const dx = node.point[0] - center[0];
+      const dy = node.point[1] - center[1];
+      const dz = node.point[2] - center[2];
+      const distSq = dx * dx + dy * dy + dz * dz;
+      if (distSq <= radiusSq) {
+        results.push({ atomIndex: node.atomIndex, distance: Math.sqrt(distSq) });
+      }
+      const diff = center[axis] - node.point[axis];
+      const near = diff <= 0 ? node.left : node.right;
+      const far = diff <= 0 ? node.right : node.left;
+      searchBall(near, center, radiusSq, results, depth + 1);
+      if (diff * diff <= radiusSq) {
+        searchBall(far, center, radiusSq, results, depth + 1);
+      }
+    }
+
+    function buildReferenceKDTrees() {
+      const referenceKeys = [...new Set(Object.values(MUTATIONS).map((mutation) => mutation.referenceKey))];
+      referenceKeys.forEach((key) => buildKDTreeForReference(key));
+      buildSyntheticBenchmark(app.atoms.complex_6sof || app.atoms.insr_normal);
+    }
+
+    function buildKDTreeForReference(referenceKey) {
+      const atoms = app.atoms[referenceKey];
+      if (!atoms || !atoms.length) {
+        throw new Error(`${referenceKey} 기준 구조가 로드되지 않았습니다`);
+      }
+      const points = atoms.map((atom) => atom.point);
+      const indices = atoms.map((_, index) => index);
+      const t0 = performance.now();
+      app.kdTrees[referenceKey] = {
+        root: buildTree(points, indices),
+        points
+      };
+      app.kdTreeBuildMs[referenceKey] = performance.now() - t0;
+      return app.kdTrees[referenceKey];
+    }
+
+    function getKDTreeForReference(referenceKey) {
+      return app.kdTrees[referenceKey] || buildKDTreeForReference(referenceKey);
+    }
+
+    function buildSyntheticBenchmark(referenceAtoms) {
+      let minX = Infinity, maxX = -Infinity;
+      let minY = Infinity, maxY = -Infinity;
+      let minZ = Infinity, maxZ = -Infinity;
+      for (const atom of referenceAtoms) {
+        if (atom.x < minX) minX = atom.x;
+        if (atom.x > maxX) maxX = atom.x;
+        if (atom.y < minY) minY = atom.y;
+        if (atom.y > maxY) maxY = atom.y;
+        if (atom.z < minZ) minZ = atom.z;
+        if (atom.z > maxZ) maxZ = atom.z;
+      }
+      const dx = maxX - minX;
+      const dy = maxY - minY;
+      const dz = maxZ - minZ;
+      const synthPoints = new Array(SYNTH_N);
+      for (let i = 0; i < SYNTH_N; i++) {
+        synthPoints[i] = [
+          minX + Math.random() * dx,
+          minY + Math.random() * dy,
+          minZ + Math.random() * dz
+        ];
+      }
+      const synthIndices = synthPoints.map((_, i) => i);
+      app.synthPoints = synthPoints;
+      app.synthKDRoot = buildTree(synthPoints, synthIndices);
+      app.synthBounds = { minX, maxX, minY, maxY, minZ, maxZ };
+      app.synthCenter = [(minX + maxX) / 2, (minY + maxY) / 2, (minZ + maxZ) / 2];
+      app.synthKDCache = {};
+
+      // Brute Force는 반경 무관하게 항상 동일 → 딱 한 번만 측정
+      const c = app.synthCenter;
+      const warmRSq = 8 * 8;
+      for (let w = 0; w < 5; w++) {
+        let cnt = 0;
+        for (let i = 0; i < synthPoints.length; i++) {
+          const ddx = synthPoints[i][0] - c[0];
+          const ddy = synthPoints[i][1] - c[1];
+          const ddz = synthPoints[i][2] - c[2];
+          if (ddx * ddx + ddy * ddy + ddz * ddz <= warmRSq) cnt++;
+        }
+      }
+      const bt0 = performance.now();
+      for (let rep = 0; rep < BENCH_REPS; rep++) {
+        let cnt = 0;
+        for (let i = 0; i < synthPoints.length; i++) {
+          const ddx = synthPoints[i][0] - c[0];
+          const ddy = synthPoints[i][1] - c[1];
+          const ddz = synthPoints[i][2] - c[2];
+          if (ddx * ddx + ddy * ddy + ddz * ddz <= warmRSq) cnt++;
+        }
+      }
+      app.synthBruteTimeMs = performance.now() - bt0;
+    }
+
+    function measureSyntheticPerf(radius) {
+      const { synthPoints, synthKDRoot, synthCenter, synthBruteTimeMs } = app;
+      if (!synthPoints || !synthKDRoot || synthBruteTimeMs === null) return null;
+
+      const radiusKey = Number(radius).toFixed(1);
+      const radiusSq = radius * radius;
+
+      // Brute Force: 반경 무관 → 항상 캐시된 고정값 사용
+      const bruteTimeMs = synthBruteTimeMs;
+
+      // KD-Tree: 반경별 최초 1회만 측정 후 캐시
+      if (!app.synthKDCache[radiusKey]) {
+        for (let w = 0; w < 3; w++) {
+          const raw = [];
+          searchBall(synthKDRoot, synthCenter, radiusSq, raw);
+        }
+        const t1 = performance.now();
+        for (let rep = 0; rep < BENCH_REPS; rep++) {
+          const raw = [];
+          searchBall(synthKDRoot, synthCenter, radiusSq, raw);
+        }
+        app.synthKDCache[radiusKey] = performance.now() - t1;
+      }
+      const kdTimeMs = app.synthKDCache[radiusKey];
+
+      const speedup = kdTimeMs > 0 ? bruteTimeMs / kdTimeMs : Infinity;
+      return { bruteTimeMs, kdTimeMs, speedup };
+    }
+
+    function kdTreeSearch(referenceKey, atoms, center, radius) {
+      const tree = getKDTreeForReference(referenceKey);
+      if (!tree.root || !tree.points) {
+        throw new Error('KD-Tree가 아직 빌드되지 않았습니다');
+      }
+      const raw = [];
+      searchBall(tree.root, center, radius * radius, raw);
+      return raw.map((item) => ({ ...item, atom: atoms[item.atomIndex] }));
+    }
+
+    function getMutationCA(mutationName) {
+      const mut = MUTATIONS[mutationName];
+      const selection = getMutationSelections(mut)[0];
+      const centerAtom = app.atoms[mutationName].find((atom) => atom.chainID === selection.chain && atom.resNum === selection.resi && atom.atomName === 'CA');
+      if (!centerAtom) {
+        throw new Error(`${mutationName}의 ${selection.chain}:${selection.resi} CA 원자를 찾지 못했습니다`);
+      }
+      return centerAtom;
+    }
+
+    function runSearch(mutationName, radius) {
+      const mut = MUTATIONS[mutationName];
+      const centerAtom = getMutationCA(mutationName);
+      const center = [centerAtom.x, centerAtom.y, centerAtom.z];
+      const referenceKey = mut.referenceKey;
+      const normalAtoms = app.atoms[referenceKey];
+      const tree = getKDTreeForReference(referenceKey);
+      const radiusSq = radius * radius;
+
+      const bruteResults = bruteForce(normalAtoms, center, radius);
+      bruteResults.sort((a, b) => a.distance - b.distance);
+
+      const kdResults = kdTreeSearch(referenceKey, normalAtoms, center, radius);
+      kdResults.sort((a, b) => a.distance - b.distance);
+
+      const synth = measureSyntheticPerf(radius);
+      const bruteTimeMs = synth
+        ? synth.bruteTimeMs
+        : timeMedian(() => bruteForce(normalAtoms, center, radius));
+      const kdTimeMs = synth
+        ? synth.kdTimeMs
+        : timeMedian(() => { const raw = []; searchBall(tree.root, center, radiusSq, raw); return raw; });
+
+      const bruteSet = new Set(bruteResults.map((item) => item.atomIndex));
+      const kdSet = new Set(kdResults.map((item) => item.atomIndex));
+      const same = bruteSet.size === kdSet.size && [...bruteSet].every((index) => kdSet.has(index));
+      const speedup = kdTimeMs > 0 ? bruteTimeMs / kdTimeMs : Infinity;
+
+      return {
+        mutationName,
+        referenceKey,
+        radius,
+        caAtom: centerAtom,
+        center,
+        brute: { results: bruteResults, timeMs: bruteTimeMs },
+        kd: { results: kdResults, timeMs: kdTimeMs },
+        same,
+        speedup
+      };
+    }
+
+    function median(values) {
+      if (!values.length) return 0;
+      const sorted = [...values].sort((a, b) => a - b);
+      const middle = Math.floor(sorted.length / 2);
+      if (sorted.length % 2 === 1) return sorted[middle];
+      return (sorted[middle - 1] + sorted[middle]) / 2;
+    }
+
+    function timeMedian(fn, warmup = 3, iterations = 25) {
+      for (let i = 0; i < warmup; i++) fn();
+      const times = [];
+      for (let i = 0; i < iterations; i++) {
+        const t0 = performance.now();
+        fn();
+        times.push(performance.now() - t0);
+      }
+      return median(times);
+    }
+
+    function runAllPerformanceSearches(radius) {
+      Object.keys(MUTATIONS).forEach((name) => {
+        app.searchResults[name] = runSearch(name, radius);
+      });
+      renderChart();
+      renderAverageSpeedup();
+    }
+
+    function runInteractiveSearch() {
+      const mutationName = mutationSelect.value;
+      const radius = Number(Number(radiusRange.value).toFixed(1));
+      const runId = ++app.searchRunId;
+      app.animationRunId = runId;
+      app.selectedMutation = mutationName;
+      app.detailsOpen = false;
+      resultsPanel.innerHTML = '<div class="empty-results"><span class="spinner"></span>계산 중...</div>';
+      searchBtn.disabled = true;
+      searchBtn.innerHTML = '<span class="spinner"></span>계산 중';
+      requestAnimationFrame(() => {
+        try {
+          getKDTreeForReference(MUTATIONS[mutationName].referenceKey);
+          const result = runSearch(mutationName, radius);
+          if (runId !== app.searchRunId) return;
+          app.searchResults[mutationName] = result;
+          app.latestHighlight = result.brute.results.map((item) => item.atom);
+          app.latestHighlightIndices = result.brute.results.map((item) => item.atomIndex);
+          app.latestSearch = {
+            mutationName,
+            radius,
+            caAtom: result.caAtom,
+            referenceKey: result.referenceKey
+          };
+          renderResults(result, runId);
+        } catch (error) {
+          if (runId !== app.searchRunId) return;
+          app.latestHighlight = [];
+          app.latestHighlightIndices = [];
+          app.latestSearch = null;
+          resultsPanel.innerHTML = `<div class="empty-results danger-text">${error.message}</div>`;
+        } finally {
+          if (runId === app.searchRunId && app.latestSearch?.mutationName === mutationName) {
+            document.getElementById('viewerSection').classList.remove('hidden');
+            document.getElementById('performanceSection').classList.remove('hidden');
+            document.getElementById('mutationInfoSection').classList.remove('hidden');
+            app.activeViewerKey = mutationName;
+            app.selectedMutation = mutationName;
+            app.infoMutationKey = mutationName;
+            syncViewerModeButtons();
+            renderMutationCards();
+
+            try {
+              if (!app.viewer && window.$3Dmol) initViewer();
+              if (app.viewer) renderViewer();
+            } catch (error) {
+              console.warn('3D 렌더링을 건너뜁니다:', error);
+            }
+
+            try {
+              renderChart();
+              renderAverageSpeedup(runId);
+            } catch (error) {
+              console.warn('차트 렌더링을 건너뜁니다:', error);
+            }
+          }
+
+          if (runId === app.searchRunId) {
+            searchBtn.disabled = false;
+            searchBtn.textContent = '계산하기';
+          }
+        }
+      });
+    }
+
+    function renderResults(result, runId = app.searchRunId, animate = true) {
+      if (runId !== app.searchRunId) return;
+      const rows = result.brute.results.slice(0, 20).map(({ atom, distance }) => `
+        <tr>
+          <td>${atom.atomNum}</td>
+          <td>${atom.atomName}</td>
+          <td>${atom.resName}</td>
+          <td>${atom.resNum}</td>
+          <td class="distance">${distance.toFixed(2)}</td>
+        </tr>
+      `).join('');
+      const detailsClass = app.detailsOpen ? 'open' : '';
+      const detailsLabel = app.detailsOpen ? '접기' : '더보기';
+      const bruteValue = animate ? '0.0 ms' : `${result.brute.timeMs.toFixed(1)} ms`;
+      const kdValue = animate ? '0.0 ms' : `${result.kd.timeMs.toFixed(1)} ms`;
+
+      resultsPanel.innerHTML = `
+        <div class="metric-grid">
+          <div class="metric-card">
+            <div class="metric-label">BRUTE FORCE</div>
+            <div class="metric-value" data-count="${result.brute.timeMs.toFixed(1)}">${bruteValue}</div>
+            <div class="metric-divider"></div>
+            <div class="metric-sub">발견 원자 <span class="mono">${result.brute.results.length}</span> 개</div>
+          </div>
+          <div class="metric-card">
+            <div class="metric-label primary">KD-TREE</div>
+            <div class="metric-value primary" data-count="${result.kd.timeMs.toFixed(1)}">${kdValue}</div>
+            <div class="metric-divider"></div>
+            <div class="metric-sub">발견 원자 <span class="mono">${result.kd.results.length}</span> 개</div>
+            <div class="speedup">⚡ ${result.speedup.toFixed(1)}× faster</div>
+          </div>
+        </div>
+        <div style="margin-top:10px;color:var(--text-muted);font:11px var(--font-mono);text-align:right;">
+          * 합성 ${SYNTH_N.toLocaleString()}개 포인트 × ${BENCH_REPS}회 연속 탐색 기준
+        </div>
+        <div class="details-toggle-row">
+          <button class="btn" id="detailsToggleBtn" type="button">${detailsLabel}</button>
+        </div>
+        <div class="result-details ${detailsClass}" id="resultDetails">
+          <div class="match-status ${result.same ? '' : 'bad'}">
+            ${result.same ? '✓ 두 방법의 결과가 동일합니다' : '✗ 결과가 다릅니다'}
+          </div>
+          <div class="table-wrap">
+            <table>
+              <thead>
+                <tr>
+                  <th>원자번호</th>
+                  <th>원자이름</th>
+                  <th>아미노산</th>
+                  <th>잔기번호</th>
+                  <th>거리(Å)</th>
+                </tr>
+              </thead>
+              <tbody>${rows}</tbody>
+            </table>
+          </div>
+        </div>
+      `;
+      document.getElementById('detailsToggleBtn').addEventListener('click', () => {
+        if (runId !== app.searchRunId) return;
+        app.detailsOpen = !app.detailsOpen;
+        renderResults(result, runId, false);
+      });
+      if (animate) {
+        animateNumbers(resultsPanel, runId);
+      }
+    }
+
+    function animateNumbers(scope, runId = app.searchRunId) {
+      scope.querySelectorAll('[data-count]').forEach((element) => {
+        const target = Number(element.dataset.count);
+        const start = performance.now();
+        const tick = (now) => {
+          if (runId !== app.searchRunId) return;
+          const progress = Math.min((now - start) / 1000, 1);
+          const value = target * (1 - Math.pow(1 - progress, 3));
+          element.textContent = `${value.toFixed(1)} ms`;
+          if (progress < 1) requestAnimationFrame(tick);
+        };
+        requestAnimationFrame(tick);
+      });
+    }
+
+    const valueLabelPlugin = {
+      id: 'valueLabelPlugin',
+      afterDatasetsDraw(chart) {
+        const { ctx } = chart;
+        ctx.save();
+        ctx.font = '12px Space Mono';
+        ctx.fillStyle = '#E8F4F8';
+        ctx.textAlign = 'center';
+        chart.data.datasets.forEach((dataset, datasetIndex) => {
+          const meta = chart.getDatasetMeta(datasetIndex);
+          meta.data.forEach((bar, index) => {
+            ctx.fillText(Number(dataset.data[index]).toFixed(1), bar.x, bar.y - 6);
+          });
+        });
+        ctx.restore();
+      }
+    };
+
+    function renderChart() {
+      if (!window.Chart) {
+        console.warn('Chart.js가 아직 로드되지 않았습니다');
+        return;
+      }
+      const labels = Object.keys(MUTATIONS);
+      const bruteTimes = labels.map((name) => app.searchResults[name]?.brute.timeMs || 0);
+      const kdTimes = labels.map((name) => app.searchResults[name]?.kd.timeMs || 0);
+      const ctx = document.getElementById('speedChart');
+      if (app.chart) app.chart.destroy();
+      app.chart = new Chart(ctx, {
+        type: 'bar',
+        data: {
+          labels,
+          datasets: [
+            { label: '브루트 포스', data: bruteTimes, backgroundColor: '#FF3B6B' },
+            { label: 'KD-Tree', data: kdTimes, backgroundColor: '#00C8FF' }
+          ]
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          plugins: {
+            legend: {
+              position: 'top',
+              align: 'end',
+              labels: { color: '#E8F4F8', font: { family: 'DM Sans' } }
+            }
+          },
+          scales: {
+            x: {
+              ticks: { color: '#E8F4F8', font: { family: 'Space Mono' } },
+              grid: { color: '#1A3A50' }
+            },
+            y: {
+              title: { display: true, text: '탐색 시간 (ms)', color: '#6A9AB5' },
+              ticks: { color: '#E8F4F8', font: { family: 'Space Mono' } },
+              grid: { color: '#1A3A50' },
+              beginAtZero: true
+            }
+          }
+        },
+        plugins: [valueLabelPlugin]
+      });
+    }
+
+    function renderAverageSpeedup(runId = app.searchRunId) {
+      const values = Object.values(app.searchResults).map((result) => result.speedup).filter(Number.isFinite);
+      const avg = values.length ? values.reduce((sum, value) => sum + value, 0) / values.length : 0;
+      countText(avgSpeedup, avg, '×', runId);
+    }
+
+    function countText(element, target, suffix, runId = app.searchRunId) {
+      const start = performance.now();
+      const tick = (now) => {
+        if (runId !== app.searchRunId) return;
+        const progress = Math.min((now - start) / 1000, 1);
+        const value = target * (1 - Math.pow(1 - progress, 3));
+        element.textContent = `${value.toFixed(1)}${suffix}`;
+        if (progress < 1) requestAnimationFrame(tick);
+      };
+      requestAnimationFrame(tick);
+    }
+
+    function downloadChart() {
+      if (!app.chart) return;
+      const link = document.createElement('a');
+      link.download = 'speed_comparison.png';
+      link.href = app.chart.toBase64Image('image/png', 1);
+      link.click();
+    }
+
+    function renderMutationCard(name, mut) {
+      return `
+        <div class="mutation-card">
+          <div class="mut-head"><span class="badge danger">${name}</span><span>${mut.domain}</span></div>
+          <div class="aa-change"><span class="aa-orig">${mut.orig}</span> <span class="aa-arrow">→</span> <span class="aa-mut">${mut.mut}</span></div>
+          <div class="mut-resi">${mutationResidueLabel(mut)}</div>
+          <div class="mut-copy">${mut.note}</div>
+          <div class="mut-detail"><strong>번호 확인</strong><br>${mut.numberNote}</div>
+          <div class="mut-detail"><strong>무엇이 문제인가?</strong><br>${mut.mechanism}</div>
+          <div class="mut-detail"><strong>그래서 어떤 일이 생기나?</strong><br>${mut.consequence}</div>
+        </div>
+      `;
+    }
+
+    function renderMutationCards() {
+      const selectedName = app.infoMutationKey && MUTATIONS[app.infoMutationKey] ? app.infoMutationKey : null;
+      const section = document.getElementById('mutationInfoSection');
+      const cards = document.getElementById('mutationCards');
+      if (!selectedName) {
+        cards.innerHTML = '';
+        section.classList.add('hidden');
+        return;
+      }
+      section.classList.remove('hidden');
+      cards.innerHTML = renderMutationCard(selectedName, MUTATIONS[selectedName]);
+    }
+
+    init();
+  </script>
+</body>
+</html>
